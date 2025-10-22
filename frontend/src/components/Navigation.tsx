@@ -49,17 +49,27 @@ const Navigation = () => {
             >
               CUSTOMIZE
             </Link>
-            <Link 
-              to="/race" 
+            <Link
+              to="/race"
               className={`font-orbitron font-medium transition-all duration-300 ${
-                isActive('/race') 
-                  ? 'text-primary shadow-neon-cyan' 
+                isActive('/race')
+                  ? 'text-primary shadow-neon-cyan'
                   : 'text-muted-foreground hover:text-primary'
               }`}
             >
               RACE
             </Link>
-            
+            <Link
+              to="/docs"
+              className={`font-orbitron font-medium transition-all duration-300 ${
+                isActive('/docs')
+                  ? 'text-primary shadow-neon-cyan'
+                  : 'text-muted-foreground hover:text-primary'
+              }`}
+            >
+              DOCS
+            </Link>
+
             <ConnectButton />
           </div>
         </div>

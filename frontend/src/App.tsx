@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Garage from "./pages/Garage";
 import Customize from "./pages/Customize";
 import Race from "./pages/Race";
+import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/garage" element={<Garage />} />
               <Route path="/customize" element={<Customize />} />
               <Route path="/race" element={<Race />} />
+              <Route path="/docs" element={<Docs />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
