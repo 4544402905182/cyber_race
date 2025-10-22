@@ -11,14 +11,21 @@ import bmwImage from "@/assets/bmw-rally.jpg";
 import mercedesImage from "@/assets/mercedes-rally.jpg";
 import hondaImage from "@/assets/honda-rally.jpg";
 import { encryptCarSetup } from "@/lib/fhe";
-import { CONTRACT_ADDRESS } from "@/lib/contract";
-import { useAccount } from "wagmi";
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/lib/contract";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 
 const Customize = () => {
   const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [selectedCar, setSelectedCar] = useState<Car>(cars[0]);
   const [selectedParts, setSelectedParts] = useState<CarPart[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
   
   const categories = ['engine', 'transmission', 'suspension', 'wheels', 'body', 'exhaust'] as const;
   
@@ -80,6 +87,39 @@ const Customize = () => {
     setIsSubmitting(true);
 
     try {
+      // First check if user is registered
+      toast.info("Checking registration status...");
+      const isRegistered = await publicClient?.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: CONTRACT_ABI,
+        functionName: 'isRegistered',
+        args: [address]
+      });
+
+      console.log("Registration check:", isRegistered);
+
+      // If not registered, register first
+      if (!isRegistered) {
+        toast.info("🎮 Registering as driver...");
+
+        const registerTx = await writeContractAsync({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: CONTRACT_ABI,
+          functionName: 'registerDriver'
+        });
+
+        toast.info("⏳ Waiting for registration confirmation...");
+
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({
+            hash: registerTx,
+            confirmations: 2
+          });
+        }
+
+        toast.success("✅ Registered successfully!");
+      }
+
       // Map selected parts to encrypted values matching contract parameters
       const getPartBoost = (category: string, stat: string) => {
         const part = selectedParts.find(p => p.category === category);
@@ -111,24 +151,53 @@ const Customize = () => {
       );
 
       toast.success("✅ Setup encrypted successfully!");
-      toast.info("📝 Ready to submit to smart contract (contract integration pending)");
 
       console.log("Encrypted Setup:", encryptedData);
       console.log("Selected Car Model:", `${selectedCar.brand} ${selectedCar.model}`);
 
-      // TODO: Submit to smart contract when deployed
-      // const carModel = `${selectedCar.brand} ${selectedCar.model}`;
-      // await contract.updateCarSetup(
-      //   carModel,
-      //   encryptedData.engineTuningHandle,
-      //   encryptedData.suspensionBalanceHandle,
-      //   encryptedData.aeroPackageHandle,
-      //   encryptedData.tireCompoundHandle,
-      //   encryptedData.boostResponseHandle,
-      //   encryptedData.brakeBiasHandle,
-      //   encryptedData.tractionControlHandle,
-      //   encryptedData.signature
-      // );
+      // Submit to smart contract
+      toast.info("📝 Submitting to smart contract...");
+      const carModel = `${selectedCar.brand} ${selectedCar.model}`;
+
+      const tx = await writeContractAsync({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: CONTRACT_ABI,
+        functionName: 'updateCarSetup',
+        args: [
+          carModel,
+          encryptedData.engineTuningHandle as `0x${string}`,
+          encryptedData.suspensionBalanceHandle as `0x${string}`,
+          encryptedData.aeroPackageHandle as `0x${string}`,
+          encryptedData.tireCompoundHandle as `0x${string}`,
+          encryptedData.boostResponseHandle as `0x${string}`,
+          encryptedData.brakeBiasHandle as `0x${string}`,
+          encryptedData.tractionControlHandle as `0x${string}`,
+          encryptedData.signature as `0x${string}`
+        ]
+      });
+
+      console.log("Transaction hash:", tx);
+      setTxHash(tx);
+      toast.info(`⏳ Transaction submitted: ${tx.substring(0, 10)}...`);
+      toast.info("Waiting for confirmation...");
+
+      // Wait for transaction receipt
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: tx,
+          confirmations: 2
+        });
+
+        console.log("Transaction receipt:", receipt);
+
+        if (receipt.status === 'success') {
+          toast.success(`🎉 Car setup updated successfully!`);
+          toast.success(`View on Etherscan: https://sepolia.etherscan.io/tx/${tx}`);
+        } else {
+          toast.error(`❌ Transaction failed! Check Etherscan for details.`);
+          toast.error(`https://sepolia.etherscan.io/tx/${tx}`);
+        }
+      }
 
     } catch (error) {
       console.error("Failed to encrypt setup:", error);

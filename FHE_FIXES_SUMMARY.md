@@ -1,53 +1,53 @@
-# EncryptedRally-Championship FHE 修复总结
+# EncryptedRally-Championship FHE Fix Summary
 
-## ✅ 已完成的修复
+## ✅ Completed Fixes
 
-### 1. Import 语句更新
-**修改前:**
+### 1. Import Statement Updates
+**Before:**
 ```solidity
 import { inEuint8, inEuint16, inEuint32, inEuint64, inEuint128 } from "@fhevm/solidity/lib/FHE.sol";
 ```
 
-**修改后:**
+**After:**
 ```solidity
 import { externalEuint8, externalEuint16, externalEuint32, externalEuint64, externalEuint128 } from "@fhevm/solidity/lib/FHE.sol";
 ```
 
-### 2. 修复的函数 (5个)
+### 2. Fixed Functions (5 total)
 
-#### 2.1 createChampionship (第361行)
-- ✅ 参数类型: `inEuint32/16` → `externalEuint32/16`
-- ✅ 添加: `bytes calldata inputProof` 参数
-- ✅ 转换方式: `FHE.asEuint*()` → `FHE.fromExternal(input, inputProof)`
+#### 2.1 createChampionship (Line 361)
+- ✅ Parameter type: `inEuint32/16` → `externalEuint32/16`
+- ✅ Added: `bytes calldata inputProof` parameter
+- ✅ Conversion method: `FHE.asEuint*()` → `FHE.fromExternal(input, inputProof)`
 
-#### 2.2 registerDriver (第422行)
-- ✅ 参数类型: `inEuint8` → `externalEuint8`
-- ✅ 添加: `bytes calldata inputProof` 参数
-- ✅ 转换方式: `FHE.asEuint8()` → `FHE.fromExternal(input, inputProof)`
+#### 2.2 registerDriver (Line 422)
+- ✅ Parameter type: `inEuint8` → `externalEuint8`
+- ✅ Added: `bytes calldata inputProof` parameter
+- ✅ Conversion method: `FHE.asEuint8()` → `FHE.fromExternal(input, inputProof)`
 
-#### 2.3 updateCarSetup (第479行)
-- ✅ 参数类型: 7个 `inEuint*` → 7个 `externalEuint*`
-- ✅ 添加: `bytes calldata inputProof` 参数
-- ✅ 转换方式: 所有 `FHE.asEuint*()` → `FHE.fromExternal(input, inputProof)`
+#### 2.3 updateCarSetup (Line 479)
+- ✅ Parameter type: 7 `inEuint*` → 7 `externalEuint*`
+- ✅ Added: `bytes calldata inputProof` parameter
+- ✅ Conversion method: All `FHE.asEuint*()` → `FHE.fromExternal(input, inputProof)`
 
-#### 2.4 submitRally (第522行) - 最复杂
-- ✅ 参数类型: 12个 `inEuint*` → 12个 `externalEuint*`
-  - 3个 `externalEuint32` (lapTime, speedAverage, boostUsage)
-  - 3个 `externalEuint16` (carTier, handlingScore, consistencyScore)
-  - 6个 `externalEuint8` (penalty, crashes, terrainMastery, weatherAdaptation, overtakes, cornersOptimal)
-- ✅ 添加: `bytes calldata inputProof` 参数
-- ✅ 转换方式: 所有 12个加密参数都使用 `FHE.fromExternal()`
+#### 2.4 submitRally (Line 522) - Most complex
+- ✅ Parameter type: 12 `inEuint*` → 12 `externalEuint*`
+  - 3 `externalEuint32` (lapTime, speedAverage, boostUsage)
+  - 3 `externalEuint16` (carTier, handlingScore, consistencyScore)
+  - 6 `externalEuint8` (penalty, crashes, terrainMastery, weatherAdaptation, overtakes, cornersOptimal)
+- ✅ Added: `bytes calldata inputProof` parameter
+- ✅ Conversion method: All 12 encrypted parameters use `FHE.fromExternal()`
 
-#### 2.5 updateTeamRating (第973行)
-- ✅ 参数类型: `inEuint32` → `externalEuint32`
-- ✅ 添加: `bytes calldata inputProof` 参数
-- ✅ 转换方式: `FHE.asEuint32()` → `FHE.fromExternal(input, inputProof)`
+#### 2.5 updateTeamRating (Line 973)
+- ✅ Parameter type: `inEuint32` → `externalEuint32`
+- ✅ Added: `bytes calldata inputProof` parameter
+- ✅ Conversion method: `FHE.asEuint32()` → `FHE.fromExternal(input, inputProof)`
 
-### 3. ACL 权限管理验证
-✅ 所有函数正确使用 `FHE.allowThis()` 来授权合约访问加密数据
+### 3. ACL Permission Management Verification
+✅ All functions correctly use `FHE.allowThis()` to authorize contract access to encrypted data
 
-### 4. Gateway 解密机制
-✅ Gateway 回调函数保持不变，解密机制正确实现：
+### 4. Gateway Decryption Mechanism
+✅ Gateway callback functions remain unchanged, decryption mechanism correctly implemented:
 - `callbackPerformanceScore`
 - `callbackSpeedRating`
 - `callbackSkillAssessment`
@@ -56,43 +56,43 @@ import { externalEuint8, externalEuint16, externalEuint32, externalEuint64, exte
 - `callbackDriverTier`
 - `callbackSafetyRating`
 
-## 📋 前端需要的更新
+## 📋 Required Frontend Updates
 
-前端调用这些函数时需要：
+When calling these functions from frontend:
 
 ```typescript
-// 1. 初始化 FHE 实例
+// 1. Initialize FHE instance
 const fheInstance = await createInstance(SepoliaConfig);
 await initSDK();
 
-// 2. 加密数据
-const encrypted = await fheInstance.encrypt32(value);  // 或 encrypt16, encrypt8
+// 2. Encrypt data
+const encrypted = await fheInstance.encrypt32(value);  // or encrypt16, encrypt8
 
-// 3. 生成 proof
+// 3. Generate proof
 const inputProof = await fheInstance.generateProof();
 
-// 4. 调用合约函数
+// 4. Call contract function
 await contract.submitRally(
   championshipId,
   encrypted.handles[0],  // lapTime handle
   encrypted.handles[1],  // speedAverage handle
-  // ... 其他加密参数
-  inputProof            // ← 新增的 proof 参数
+  // ... other encrypted parameters
+  inputProof            // ← New proof parameter
 );
 ```
 
-## 🎯 合约现在完全符合 Zama FHE 标准
+## 🎯 Contract Now Fully Compliant with Zama FHE Standard
 
-所有关键问题已修复：
-- ✅ 使用正确的 `externalEuint*` 类型
-- ✅ 所有接收加密参数的函数都有 `inputProof`
-- ✅ 使用 `FHE.fromExternal()` 而非 `FHE.asEuint*()`
-- ✅ 保持正确的 ACL 权限管理
-- ✅ Gateway 异步解密机制正确实现
+All critical issues fixed:
+- ✅ Using correct `externalEuint*` types
+- ✅ All functions receiving encrypted parameters have `inputProof`
+- ✅ Using `FHE.fromExternal()` instead of `FHE.asEuint*()`
+- ✅ Maintaining correct ACL permission management
+- ✅ Gateway async decryption mechanism correctly implemented
 
-## 下一步建议
+## Next Steps
 
-1. **部署测试**: 将修复后的合约部署到 Sepolia 测试网
-2. **前端集成**: 更新前端代码以适配新的函数签名
-3. **单元测试**: 创建 Hardhat 测试脚本验证所有功能
-4. **文档更新**: 更新 API 文档说明新的参数要求
+1. **Deployment Testing**: Deploy fixed contract to Sepolia testnet
+2. **Frontend Integration**: Update frontend code to adapt to new function signatures
+3. **Unit Testing**: Create Hardhat test scripts to verify all functionality
+4. **Documentation Update**: Update API documentation to explain new parameter requirements

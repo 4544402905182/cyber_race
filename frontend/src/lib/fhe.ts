@@ -1,85 +1,56 @@
 import { getAddress, hexlify } from 'ethers';
 
-declare global {
-  interface Window {
-    relayerSDK?: {
-      initSDK: () => Promise<void>;
-      createInstance: (config: Record<string, unknown>) => Promise<any>;
-      SepoliaConfig: Record<string, unknown>;
-    };
-  }
-}
-
 let fheInstance: any = null;
-let sdkPromise: Promise<any> | null = null;
-
-const SDK_URL = 'https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js';
-
-const loadSdk = async (): Promise<any> => {
-  if (typeof window === 'undefined') {
-    throw new Error('FHE SDK requires browser environment');
-  }
-
-  if (window.relayerSDK) {
-    return window.relayerSDK;
-  }
-
-  if (!sdkPromise) {
-    sdkPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector(`script[src="${SDK_URL}"]`) as HTMLScriptElement | null;
-      if (existing) {
-        existing.addEventListener('load', () => resolve(window.relayerSDK));
-        existing.addEventListener('error', () => reject(new Error('Failed to load FHE SDK')));
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = SDK_URL;
-      script.async = true;
-      script.onload = () => {
-        if (window.relayerSDK) {
-          resolve(window.relayerSDK);
-        } else {
-          reject(new Error('relayerSDK unavailable after load'));
-        }
-      };
-      script.onerror = () => reject(new Error('Failed to load FHE SDK'));
-      document.body.appendChild(script);
-    });
-  }
-
-  return sdkPromise;
-};
+let sdkModule: any = null;
 
 export const initializeFHE = async (): Promise<any> => {
+  console.log('🚀 [FHE] initializeFHE called');
+
   if (fheInstance) {
+    console.log('✅ [FHE] FHE instance already exists, reusing it');
     return fheInstance;
   }
 
-  if (typeof window === 'undefined' || !window.ethereum) {
+  console.log('🔍 [FHE] Checking window and ethereum...');
+
+  if (typeof window === 'undefined') {
+    console.error('❌ [FHE] Window is undefined');
+    throw new Error('Window is undefined');
+  }
+
+  if (!window.ethereum) {
+    console.error('❌ [FHE] Ethereum provider not found');
     throw new Error('Ethereum provider not found');
   }
 
-  const sdk = await loadSdk();
-  if (!sdk) {
-    throw new Error('FHE SDK not available');
+  console.log('✅ [FHE] Window and ethereum provider found');
+
+  try {
+    if (!sdkModule) {
+      console.log('📦 [FHE] Loading SDK from CDN...');
+      sdkModule = await import('https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js');
+      console.log('✅ [FHE] SDK module loaded from CDN');
+      console.log('📦 [FHE] SDK exports:', Object.keys(sdkModule));
+    }
+
+    console.log('⏳ [FHE] Initializing SDK...');
+    await sdkModule.initSDK();
+    console.log('✅ [FHE] SDK initialized');
+
+    console.log('⏳ [FHE] Creating FHE instance with SepoliaConfig...');
+    fheInstance = await sdkModule.createInstance(sdkModule.SepoliaConfig);
+    console.log('✅ [FHE] FHE instance created successfully');
+    return fheInstance;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ [FHE] Initialization failed:', errorMsg);
+    console.error('❌ [FHE] Error details:', error);
+    throw new Error(`FHE initialization failed: ${errorMsg}`);
   }
-
-  await sdk.initSDK();
-
-  const config = {
-    ...sdk.SepoliaConfig,
-    network: window.ethereum,
-  };
-
-  fheInstance = await sdk.createInstance(config);
-  return fheInstance;
 };
 
-export const getFHEInstance = (): any => fheInstance;
-
-const ensureFHE = async (): Promise<any> => {
-  return fheInstance ?? (await initializeFHE());
+export const getFHEInstance = (): any => {
+  return fheInstance;
 };
 
 export const encryptCarSetup = async (
@@ -102,10 +73,26 @@ export const encryptCarSetup = async (
   tractionControlHandle: string;
   signature: string;
 }> => {
-  const fhe = await ensureFHE();
+  console.log('🔐 [FHE] encryptCarSetup called with values:', {
+    engineTuning, suspensionBalance, aeroPackage, tireCompound,
+    boostResponse, brakeBias, tractionControl
+  });
+
+  let fhe = getFHEInstance();
+  if (!fhe) {
+    console.log('⏳ [FHE] FHE instance not found, initializing...');
+    fhe = await initializeFHE();
+  } else {
+    console.log('✅ [FHE] Using existing FHE instance');
+  }
+
+  if (!fhe) throw new Error('Failed to initialize FHE');
+
+  console.log('📝 [FHE] Creating encrypted input...');
   const contractAddressChecksum = getAddress(contractAddress);
   const ciphertext = await fhe.createEncryptedInput(contractAddressChecksum, userAddress);
 
+  console.log('➕ [FHE] Adding values to encrypted input...');
   // Add all values in correct order matching contract parameters
   ciphertext.add16(engineTuning);        // euint16
   ciphertext.add16(suspensionBalance);   // euint16
@@ -115,7 +102,9 @@ export const encryptCarSetup = async (
   ciphertext.add8(brakeBias);            // euint8
   ciphertext.add8(tractionControl);      // euint8
 
+  console.log('🔒 [FHE] Encrypting values...');
   const { handles, inputProof } = await ciphertext.encrypt();
+  console.log('✅ [FHE] Encryption completed, handles count:', handles.length);
 
   return {
     engineTuningHandle: hexlify(handles[0]),
