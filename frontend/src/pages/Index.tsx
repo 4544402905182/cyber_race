@@ -45,6 +45,23 @@ const Index = () => {
               </Button>
             </Link>
           </div>
+
+          {/* Demo Video Section */}
+          <div className="mt-16 w-full max-w-5xl mx-auto px-4">
+            <div className="relative rounded-lg overflow-hidden border border-primary/30 shadow-2xl shadow-primary/20 bg-black">
+              <video
+                className="w-full aspect-video"
+                controls
+                preload="metadata"
+              >
+                <source src="/video.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              Watch the demo: Experience FHE-encrypted car customization in action
+            </p>
+          </div>
         </div>
       </section>
       
