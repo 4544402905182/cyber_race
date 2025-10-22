@@ -2,11 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Rocket, Wrench, Trophy, Lock, Sparkles, Calendar } from "lucide-react";
+import Navigation from "@/components/Navigation";
 
 export default function Docs() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
+      <Navigation />
+      <div className="container mx-auto px-4 py-12 max-w-5xl pt-24">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
